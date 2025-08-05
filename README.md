@@ -1,6 +1,6 @@
 # Contact List Processor
 
-A comprehensive command-line tool for processing VCF (vCard) files with various operations including encoding conversion, picture removal, number formatting, name formatting, automatic type setting, and version upgrading.
+A comprehensive command-line tool for processing VCF (vCard) files with various operations including encoding conversion, picture removal, number formatting, name formatting, automatic type setting, and version upgrading. Also includes an interactive tool for selectively deleting contacts.
 
 ## Features
 
@@ -61,25 +61,32 @@ The Contact List Processor provides 6 independent operations that can be combine
    cd ContactListProcessor
    ```
 
-2. Make the script executable (optional):
+2. Make the scripts executable (optional):
    ```bash
    chmod +x contact-list-processor.py
+   chmod +x contact-list-delete-iterator.py
    ```
 
 ## Usage
 
-### Basic Usage
+### Main Processing Tool
 
 ```bash
 python3 contact-list-processor.py -i input.vcf [options]
 ```
 
-### Required Arguments
+### Interactive Contact Deletion Tool
 
+```bash
+python3 contact-list-delete-iterator.py -i input.vcf [options]
+```
+
+### Main Processing Tool Arguments
+
+#### Required Arguments
 - `-i`, `--input`: Path to the input VCF file (required)
 
-### Optional Arguments
-
+#### Optional Arguments
 - `-o`, `--output`: Path to the output VCF file (default: input_path with "_processed" suffix)
 - `-r`, `--readable`: Convert quoted-printable encoding to readable format
 - `--remove-pictures`: Remove contact pictures from the VCF file
@@ -91,9 +98,18 @@ python3 contact-list-processor.py -i input.vcf [options]
 - `-a`, `--all`: Apply all operations (equivalent to -r --remove-pictures --format-numbers --format-names --auto-set-types -u -s)
 - `-h`, `--help`: Show help message
 
+### Interactive Contact Deletion Tool Arguments
+
+#### Required Arguments
+- `-i`, `--input`: Path to the input VCF file (required)
+
+#### Optional Arguments
+- `-o`, `--output`: Path to the output VCF file (default: input_path with "_cleaned" suffix)
+- `-h`, `--help`: Show help message
+
 ### Usage Examples
 
-#### Single Operation
+#### Main Processing Tool - Single Operation
 ```bash
 # Only convert to readable format
 python3 contact-list-processor.py -i contacts.vcf -r
@@ -108,7 +124,16 @@ python3 contact-list-processor.py -i contacts.vcf --format-numbers
 python3 contact-list-processor.py -i contacts.vcf -s
 ```
 
-#### Multiple Operations
+#### Interactive Contact Deletion Tool
+```bash
+# Interactive contact deletion with default output
+python3 contact-list-delete-iterator.py -i contacts.vcf
+
+# Interactive contact deletion with custom output
+python3 contact-list-delete-iterator.py -i contacts.vcf -o cleaned_contacts.vcf
+```
+
+#### Main Processing Tool - Multiple Operations
 ```bash
 # Convert encoding and remove pictures
 python3 contact-list-processor.py -i contacts.vcf -r --remove-pictures
@@ -137,8 +162,14 @@ python3 contact-list-processor.py -i messy_contacts.vcf -r --remove-pictures --f
 python3 contact-list-processor.py -i old_contacts.vcf --format-numbers --format-names -u
 ```
 
+**Interactive Contact Cleanup:**
+```bash
+python3 contact-list-delete-iterator.py -i contacts.vcf
+```
+
 ### Output
 
+#### Main Processing Tool
 The script will:
 1. Process the VCF file according to specified operations
 2. Display progress messages for each operation
@@ -158,24 +189,59 @@ Processed VCF file saved to: contacts_processed.vcf
 
 **Note**: When using `-a` or `--all`, all operations are applied in the optimal order for best results.
 
+#### Interactive Contact Deletion Tool
+The script will:
+1. Display each contact name and prompt for user input
+2. Ask "Y" to delete or "N" to keep (default: N)
+3. Show progress with kept/deleted indicators
+4. Display summary statistics at completion
+5. Save the cleaned file to the specified output path
+
+Example interactive session:
+```
+Starting contact deletion process...
+For each contact, enter 'Y' to delete or 'N' to keep (default: N)
+--------------------------------------------------
+Contact 1: John Smith - Delete? (Y/N) [N]: 
+  Kept: John Smith
+Contact 2: Jane Doe - Delete? (Y/N) [N]: y
+  Deleted: Jane Doe
+Contact 3: Bob Johnson - Delete? (Y/N) [N]: n
+  Kept: Bob Johnson
+--------------------------------------------------
+Process completed!
+Total contacts processed: 3
+Contacts kept: 2
+Contacts deleted: 1
+Cleaned VCF file saved to: contacts_cleaned.vcf
+```
+
 ## File Structure
 
 ```
 ContactListProcessor/
-├── contact-list-processor.py    # Main processing script
-├── README.md                    # This file
-├── LICENSE                      # License information
-└── *.vcf                        # Example VCF files (if any)
+├── contact-list-processor.py        # Main processing script
+├── contact-list-delete-iterator.py  # Interactive contact deletion tool
+├── README.md                        # This file
+├── LICENSE                          # License information
+└── *.vcf                           # Example VCF files (if any)
 ```
 
 ## Technical Details
 
 ### Architecture
 
+#### Main Processing Tool
 - **Modular Design**: Each operation is implemented as an independent function
 - **Data Flow**: Functions receive and return line lists, avoiding intermediate file I/O
 - **Order Independence**: Operations can be executed in any order without dependencies
 - **Error Handling**: Graceful handling of malformed data and encoding issues
+
+#### Interactive Contact Deletion Tool
+- **Interactive Design**: User-driven decision making for each contact
+- **Smart Name Extraction**: Uses FN field with N field fallback for contact identification
+- **Safe Operation**: Preserves original file, creates new output file
+- **Progress Tracking**: Real-time feedback and summary statistics
 
 ### Supported Formats
 
