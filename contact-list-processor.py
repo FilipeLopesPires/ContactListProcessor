@@ -19,6 +19,7 @@ def main():
     parser.add_argument("-o", "--output", help="Path to the output VCF file (default: input_path with \"_processed\" suffix)")
     parser.add_argument("-r", "--readable", action="store_true", help="Convert quoted-printable encoding to readable format")
     parser.add_argument("--remove-pictures", action="store_true", help="Remove contact pictures from the VCF file")
+    parser.add_argument("--remove-optional-fields", action="store_true", help="Remove non-mandatory fields (BDAY, ADR, EMAIL, etc.) keeping only essential contact info")
     parser.add_argument("--format-numbers", action="store_true", help="Format contact phone numbers (remove +351 and format 9-digit numbers)")
     parser.add_argument("--format-names", action="store_true", help="Format contact names (ensure FN field is properly formatted)")
     parser.add_argument("--auto-set-types", action="store_true", help="Automatically set contact types based on phone number patterns")
@@ -40,8 +41,8 @@ def main():
         output_path = f"{base}_processed{ext}"
 
     # Check if at least one operation is specified
-    if not args.readable and not args.remove_pictures and not args.format_numbers and not args.format_names and not args.auto_set_types and not args.update_version and not args.sort_by_name and not args.all:
-        print("Error: At least one operation must be specified. Use -r/--readable, --remove-pictures, --format-numbers, --format-names, --auto-set-types, -u/--update-version, -s/--sort-by-name, or -a/--all")
+    if not args.readable and not args.remove_pictures and not args.remove_optional_fields and not args.format_numbers and not args.format_names and not args.auto_set_types and not args.update_version and not args.sort_by_name and not args.all:
+        print("Error: At least one operation must be specified. Use -r/--readable, --remove-pictures, --remove-optional-fields, --format-numbers, --format-names, --auto-set-types, -u/--update-version, -s/--sort-by-name, or -a/--all")
         return
 
     # Read the input file
@@ -58,6 +59,9 @@ def main():
         
         processed_lines = removeContactPictures(processed_lines)
         print("Removed contact pictures")
+        
+        processed_lines = removeOptionalFields(processed_lines)
+        print("Removed non-mandatory fields")
         
         processed_lines = formatContactNumbers(processed_lines)
         print("Formatted contact phone numbers")
@@ -82,6 +86,10 @@ def main():
         if args.remove_pictures:
             processed_lines = removeContactPictures(processed_lines)
             print("Removed contact pictures")
+        
+        if args.remove_optional_fields:
+            processed_lines = removeOptionalFields(processed_lines)
+            print("Removed non-mandatory fields")
         
         if args.format_numbers:
             processed_lines = formatContactNumbers(processed_lines)
@@ -191,6 +199,65 @@ def removeContactPictures(lines):
 
     return lines_without_pictures
 
+def removeOptionalFields(lines):
+    """
+    Remove non-mandatory fields from VCF lines, keeping only essential contact information.
+    
+    Args:
+        lines (list): List of VCF file lines
+        
+    Returns:
+        list: VCF lines with non-mandatory fields removed
+    """
+    lines_without_optional = []
+    current_contact = []
+
+    # Define mandatory fields that should be kept
+    mandatory_fields = {
+        "BEGIN:VCARD",
+        "END:VCARD", 
+        "VERSION",
+        "FN",  # Formatted Name
+        "N",   # Name
+        "TEL"  # Telephone
+    }
+
+    def is_mandatory_field(line):
+        """Check if a line contains a mandatory field."""
+        stripped = line.strip().upper()
+        
+        # Check for exact matches first
+        if stripped in ["BEGIN:VCARD", "END:VCARD"]:
+            return True
+        
+        # Check for field prefixes
+        for field in mandatory_fields:
+            if stripped.startswith(field):
+                return True
+        
+        # Handle TEL with TYPE parameters
+        if stripped.startswith("TEL;TYPE="):
+            return True
+        
+        return False
+
+    # Process each contact
+    for line in lines:
+        if line.strip().upper() == "BEGIN:VCARD":
+            current_contact = [line]
+        elif line.strip().upper() == "END:VCARD":
+            current_contact.append(line)
+            lines_without_optional.extend(current_contact)
+            lines_without_optional.append("\n")  # Add blank line between contacts
+            current_contact = []
+        else:
+            # Only keep mandatory fields
+            if is_mandatory_field(line):
+                current_contact.append(line)
+            # Skip non-mandatory fields (BDAY, ADR, EMAIL, ORG, TITLE, etc.)
+
+    return lines_without_optional
+
 def formatContactNumbers(lines):
     """
     Format contact phone numbers by removing +351 prefix and formatting 9-digit numbers.
@@ -205,6 +272,9 @@ def formatContactNumbers(lines):
     
     # Helper function to clean and format a 9-digit number
     def normalize_phone_number(line):
+        # Standardize TEL format first
+        line = standardize_tel_format(line)
+        
         # Remove +351 with or without separators
         line = re.sub(r"\+351[\s\-\.\\\/]*", "", line)
 
@@ -220,6 +290,48 @@ def formatContactNumbers(lines):
         if "TEL" in line.upper():
             # Replace all 9-digit patterns, allowing for existing separators
             line = re.sub(r"(?<!\d)([\d\D]{9,15}?)(?!\d)", replacer, line)
+        return line
+
+    def standardize_tel_format(line):
+        """Standardize TEL format to TEL;TYPE=type:number format."""
+        stripped = line.strip()
+        
+        # Handle TEL;TYPE=CELL: format (already correct)
+        if re.match(r"^TEL;TYPE=[^:]+:", stripped, re.IGNORECASE):
+            return line
+        
+        # Handle TEL;CELL:, TEL;WORK:, TEL;HOME:, etc. format
+        tel_type_match = re.match(r"^TEL;([^:]+):(.+)$", stripped, re.IGNORECASE)
+        if tel_type_match:
+            type_value = tel_type_match.group(1).strip()
+            number = tel_type_match.group(2).strip()
+            
+            # Map common type values to standard types
+            type_mapping = {
+                "CELL": "cell",
+                "MOBILE": "cell", 
+                "WORK": "work",
+                "HOME": "home",
+                "VOICE": "voice",
+                "FAX": "fax",
+                "PAGER": "pager",
+                "VIDEO": "video",
+                "TEXT": "text",
+                "TEXTPHONE": "textphone"
+            }
+            
+            # Convert to lowercase and map to standard type
+            type_lower = type_value.lower()
+            standardized_type = type_mapping.get(type_lower, type_lower)
+            
+            return f"TEL;TYPE={standardized_type}:{number}\n"
+        
+        # Handle simple TEL: format (no type specified)
+        if re.match(r"^TEL:", stripped, re.IGNORECASE):
+            # Extract the number after TEL:
+            number = stripped[4:].strip()
+            return f"TEL;TYPE=voice:{number}\n"
+        
         return line
 
     # Process each line

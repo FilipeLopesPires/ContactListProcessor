@@ -16,7 +16,13 @@ The Contact List Processor provides 6 independent operations that can be combine
    - Reduces file size significantly
    - Preserves all other contact information
 
-3. **Format Phone Numbers** (`--format-numbers`)
+3. **Remove Optional Fields** (`--remove-optional-fields`)
+   - Removes non-mandatory fields (BDAY, ADR, EMAIL, ORG, TITLE, etc.)
+   - Keeps only essential contact information (N, FN, TEL, VERSION)
+   - Reduces file size and simplifies contact data
+   - Maintains proper VCF structure
+
+4. **Format Phone Numbers** (`--format-numbers`)
    - Removes +351 country code prefix
    - Formats 9-digit numbers with spaces (XXX XXX XXX)
    - Only affects TEL fields
@@ -90,12 +96,13 @@ python3 contact-list-delete-iterator.py -i input.vcf [options]
 - `-o`, `--output`: Path to the output VCF file (default: input_path with "_processed" suffix)
 - `-r`, `--readable`: Convert quoted-printable encoding to readable format
 - `--remove-pictures`: Remove contact pictures from the VCF file
+- `--remove-optional-fields`: Remove non-mandatory fields (BDAY, ADR, EMAIL, etc.) keeping only essential contact info
 - `--format-numbers`: Format contact phone numbers (remove +351 and format 9-digit numbers)
 - `--format-names`: Format contact names (ensure FN field is properly formatted)
 - `--auto-set-types`: Automatically set contact types based on phone number patterns
 - `-u`, `--update-version`: Upgrade VCF from version 2.1 to 3.0
 - `-s`, `--sort-by-name`: Sort all contacts alphabetically by name
-- `-a`, `--all`: Apply all operations (equivalent to -r --remove-pictures --format-numbers --format-names --auto-set-types -u -s)
+- `-a`, `--all`: Apply all operations (equivalent to -r --remove-pictures --remove-optional-fields --format-numbers --format-names --auto-set-types -u -s)
 - `-h`, `--help`: Show help message
 
 ### Interactive Contact Deletion Tool Arguments
@@ -116,6 +123,9 @@ python3 contact-list-processor.py -i contacts.vcf -r
 
 # Only remove pictures
 python3 contact-list-processor.py -i contacts.vcf --remove-pictures
+
+# Only remove optional fields
+python3 contact-list-processor.py -i contacts.vcf --remove-optional-fields
 
 # Only format phone numbers
 python3 contact-list-processor.py -i contacts.vcf --format-numbers
@@ -138,11 +148,14 @@ python3 contact-list-delete-iterator.py -i contacts.vcf -o cleaned_contacts.vcf
 # Convert encoding and remove pictures
 python3 contact-list-processor.py -i contacts.vcf -r --remove-pictures
 
+# Remove pictures and optional fields
+python3 contact-list-processor.py -i contacts.vcf --remove-pictures --remove-optional-fields
+
 # Format numbers and names
 python3 contact-list-processor.py -i contacts.vcf --format-numbers --format-names
 
 # All operations with custom output
-python3 contact-list-processor.py -i contacts.vcf -o processed_contacts.vcf -r --remove-pictures --format-numbers --format-names --auto-set-types -u -s
+python3 contact-list-processor.py -i contacts.vcf -o processed_contacts.vcf -r --remove-pictures --remove-optional-fields --format-numbers --format-names --auto-set-types -u -s
 ```
 
 #### Common Workflows
@@ -154,7 +167,7 @@ python3 contact-list-processor.py -i messy_contacts.vcf -a
 
 **Complete Contact Cleanup (Manual Selection):**
 ```bash
-python3 contact-list-processor.py -i messy_contacts.vcf -r --remove-pictures --format-numbers --format-names --auto-set-types
+python3 contact-list-processor.py -i messy_contacts.vcf -r --remove-pictures --remove-optional-fields --format-numbers --format-names --auto-set-types
 ```
 
 **Version Upgrade with Formatting:**
@@ -180,10 +193,12 @@ Example output:
 ```
 Converted quoted-printable encoding to readable format
 Removed contact pictures
+Removed non-mandatory fields
 Formatted contact phone numbers
 Formatted contact names
 Automatically set contact types based on phone number patterns
 Upgraded VCF from version 2.1 to 3.0
+Sorted contacts alphabetically by name
 Processed VCF file saved to: contacts_processed.vcf
 ```
 
