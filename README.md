@@ -39,6 +39,13 @@ The Contact List Processor provides 6 independent operations that can be combine
    - Normalizes TYPE fields for TEL and EMAIL entries
    - Ensures proper vCard 3.0 structure
 
+7. **Sort Contacts by Name** (`-s`, `--sort-by-name`)
+   - Sorts all contacts alphabetically by name
+   - Uses FN field as primary sort key, N field as fallback
+   - Case-insensitive sorting
+   - Maintains complete contact information
+   - Adds blank lines between contacts for readability
+
 ## Installation
 
 ### Prerequisites
@@ -80,7 +87,8 @@ python3 contact-list-processor.py -i input.vcf [options]
 - `--format-names`: Format contact names (ensure FN field is properly formatted)
 - `--auto-set-types`: Automatically set contact types based on phone number patterns
 - `-u`, `--update-version`: Upgrade VCF from version 2.1 to 3.0
-- `-a`, `--all`: Apply all operations (equivalent to -r --remove-pictures --format-numbers --format-names --auto-set-types -u)
+- `-s`, `--sort-by-name`: Sort all contacts alphabetically by name
+- `-a`, `--all`: Apply all operations (equivalent to -r --remove-pictures --format-numbers --format-names --auto-set-types -u -s)
 - `-h`, `--help`: Show help message
 
 ### Usage Examples
@@ -95,6 +103,9 @@ python3 contact-list-processor.py -i contacts.vcf --remove-pictures
 
 # Only format phone numbers
 python3 contact-list-processor.py -i contacts.vcf --format-numbers
+
+# Only sort contacts by name
+python3 contact-list-processor.py -i contacts.vcf -s
 ```
 
 #### Multiple Operations
@@ -106,7 +117,7 @@ python3 contact-list-processor.py -i contacts.vcf -r --remove-pictures
 python3 contact-list-processor.py -i contacts.vcf --format-numbers --format-names
 
 # All operations with custom output
-python3 contact-list-processor.py -i contacts.vcf -o processed_contacts.vcf -r --remove-pictures --format-numbers --format-names --auto-set-types -u
+python3 contact-list-processor.py -i contacts.vcf -o processed_contacts.vcf -r --remove-pictures --format-numbers --format-names --auto-set-types -u -s
 ```
 
 #### Common Workflows

@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--format-names", action="store_true", help="Format contact names (ensure FN field is properly formatted)")
     parser.add_argument("--auto-set-types", action="store_true", help="Automatically set contact types based on phone number patterns")
     parser.add_argument("-u", "--update-version", action="store_true", help="Upgrade VCF from version 2.1 to 3.0")
+    parser.add_argument("-s", "--sort-by-name", action="store_true", help="Sort all contacts alphabetically by name")
     parser.add_argument("-a", "--all", action="store_true", help="Apply all operations (equivalent to -r --remove-pictures --format-numbers --format-names --auto-set-types -u)")
     
     # Parse arguments
@@ -39,8 +40,8 @@ def main():
         output_path = f"{base}_processed{ext}"
 
     # Check if at least one operation is specified
-    if not args.readable and not args.remove_pictures and not args.format_numbers and not args.format_names and not args.auto_set_types and not args.update_version and not args.all:
-        print("Error: At least one operation must be specified. Use -r/--readable, --remove-pictures, --format-numbers, --format-names, --auto-set-types, -u/--update-version, or -a/--all")
+    if not args.readable and not args.remove_pictures and not args.format_numbers and not args.format_names and not args.auto_set_types and not args.update_version and not args.sort_by_name and not args.all:
+        print("Error: At least one operation must be specified. Use -r/--readable, --remove-pictures, --format-numbers, --format-names, --auto-set-types, -u/--update-version, -s/--sort-by-name, or -a/--all")
         return
 
     # Read the input file
@@ -69,6 +70,9 @@ def main():
         
         processed_lines = upgradeVcfVersion(processed_lines)
         print("Upgraded VCF from version 2.1 to 3.0")
+        
+        processed_lines = sortContactsByName(processed_lines)
+        print("Sorted contacts alphabetically by name")
     else:
         # Individual operations
         if args.readable:
@@ -94,6 +98,10 @@ def main():
         if args.update_version:
             processed_lines = upgradeVcfVersion(processed_lines)
             print("Upgraded VCF from version 2.1 to 3.0")
+        
+        if args.sort_by_name:
+            processed_lines = sortContactsByName(processed_lines)
+            print("Sorted contacts alphabetically by name")
 
     # Write the final result to output file
     with open(output_path, "w", encoding="utf-8") as outfile:
@@ -463,6 +471,72 @@ def upgradeVcfVersion(lines):
 
     return converted_lines
 
+def sortContactsByName(lines):
+    """
+    Sort all contacts alphabetically by name (FN field).
+    
+    Args:
+        lines (list): List of VCF file lines
+        
+    Returns:
+        list: VCF lines with contacts sorted by name
+    """
+    sorted_lines = []
+    current_contact = []
+    contacts = []
+
+    def extract_contact_name(contact_lines):
+        """Extract the name from a contact for sorting."""
+        fn_name = ""
+        n_name = ""
+        
+        for line in contact_lines:
+            stripped = line.strip()
+            if stripped.upper().startswith("FN:"):
+                # Extract the name after "FN:"
+                fn_name = stripped[3:].strip()
+            elif stripped.upper().startswith("N:"):
+                # Extract the name from N field as fallback
+                n_value = stripped[2:].strip()
+                if n_value:
+                    # N field format: Family;Given;Additional;Prefix;Suffix
+                    parts = n_value.split(";")
+                    # Combine Given + Additional + Family for sorting
+                    given = parts[1].strip() if len(parts) > 1 else ""
+                    additional = parts[2].strip() if len(parts) > 2 else ""
+                    family = parts[0].strip() if len(parts) > 0 else ""
+                    n_parts = [given, additional, family]
+                    n_name = " ".join(part for part in n_parts if part)
+        
+        # Prefer FN field, fallback to N field if FN is empty
+        if fn_name:
+            return fn_name.lower()  # Use lowercase for case-insensitive sorting
+        elif n_name:
+            return n_name.lower()  # Use lowercase for case-insensitive sorting
+        else:
+            return ""  # Return empty string if no name field found
+
+    # Group contacts and extract names for sorting
+    for line in lines:
+        if line.strip().upper() == "BEGIN:VCARD":
+            current_contact = [line]
+        elif line.strip().upper() == "END:VCARD":
+            current_contact.append(line)
+            contact_name = extract_contact_name(current_contact)
+            contacts.append((contact_name, current_contact))
+            current_contact = []
+        else:
+            current_contact.append(line)
+
+    # Sort contacts by name
+    contacts.sort(key=lambda x: x[0])
+
+    # Rebuild the file with sorted contacts
+    for _, contact_lines in contacts:
+        sorted_lines.extend(contact_lines)
+        sorted_lines.append("\n")  # Add blank line between contacts
+
+    return sorted_lines
 
 if __name__ == "__main__":
     main()
