@@ -415,3 +415,7 @@ If you encounter any issues or have questions:
 ---
 
 **Note**: This tool is designed to be safe and non-destructive. It always creates new output files and preserves the original input files.
+
+## Author
+
+I'm the sole author of this repository. For further information, please contact me at fsnap@protonmail.com.
