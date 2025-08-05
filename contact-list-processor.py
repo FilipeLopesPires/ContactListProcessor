@@ -346,14 +346,29 @@ def formatContactNumbers(lines):
 
 def formatContactNames(lines):
     """
-    Format contact names by ensuring FN field is properly formatted from N field if needed.
+    Format contact names by ensuring only N field remains, removing FN field entirely.
+    Creates N field from FN content if needed.
+    Automatically enables readable conversion if not already enabled.
     
     Args:
         lines (list): List of VCF file lines
         
     Returns:
-        list: VCF lines with properly formatted contact names
+        list: VCF lines with only N field (FN field removed)
     """
+    # Check if lines need readable conversion first
+    needs_readable_conversion = False
+    for line in lines:
+        if "ENCODING=QUOTED-PRINTABLE" in line:
+            needs_readable_conversion = True
+            break
+    
+    # Apply readable conversion if needed
+    if needs_readable_conversion:
+        print("Warning: --format-names requires readable conversion. Automatically enabling --readable.")
+        lines = convertToReadable(lines)
+        print("Converted quoted-printable encoding to readable format")
+    
     formatted_lines = []
     current_contact = []
 
@@ -374,20 +389,22 @@ def formatContactNames(lines):
             else:
                 other_lines.append(line)
 
-        # If no FN, build from N
-        if not fn_line and n_line:
-            parts = n_line.split(";")
-            family = parts[0].strip() if len(parts) > 0 else ""
-            given = parts[1].strip() if len(parts) > 1 else ""
-            additional = parts[2].strip() if len(parts) > 2 else ""
-            fn_parts = [given, additional, family]
-            fn_combined = " ".join(part for part in fn_parts if part)
-            fn_line = f"FN:{fn_combined}"
-
-        # Rebuild full contact
-        processed = ["BEGIN:VCARD\n"]
+        # Create N field from FN content or existing N
+        n_field = None
         if fn_line:
-            processed.append(fn_line + "\n")
+            # Use FN content to create N field
+            fn_content = fn_line[3:].strip()  # Remove "FN:" prefix
+            # N field format: Family;Given;Additional;Prefix;Suffix
+            # Use FN content as Given name, leave other fields empty
+            n_field = f"N:;{fn_content};;;"
+        elif n_line:
+            # Keep existing N field as is
+            n_field = f"N:{n_line}"
+
+        # Rebuild full contact (no FN field)
+        processed = ["BEGIN:VCARD\n"]
+        if n_field:
+            processed.append(n_field + "\n")
         processed.extend(other_lines)
         processed.append("END:VCARD\n")
         return processed
