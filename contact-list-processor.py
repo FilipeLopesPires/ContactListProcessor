@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--format-names", action="store_true", help="Format contact names (ensure FN field is properly formatted)")
     parser.add_argument("--auto-set-types", action="store_true", help="Automatically set contact types based on phone number patterns")
     parser.add_argument("-u", "--update-version", action="store_true", help="Upgrade VCF from version 2.1 to 3.0")
+    parser.add_argument("-a", "--all", action="store_true", help="Apply all operations (equivalent to -r --remove-pictures --format-numbers --format-names --auto-set-types -u)")
     
     # Parse arguments
     args = parser.parse_args()
@@ -38,8 +39,8 @@ def main():
         output_path = f"{base}_processed{ext}"
 
     # Check if at least one operation is specified
-    if not args.readable and not args.remove_pictures and not args.format_numbers and not args.format_names and not args.auto_set_types and not args.update_version:
-        print("Error: At least one operation must be specified. Use -r/--readable, --remove-pictures, --format-numbers, --format-names, --auto-set-types, and/or -u/--update-version")
+    if not args.readable and not args.remove_pictures and not args.format_numbers and not args.format_names and not args.auto_set_types and not args.update_version and not args.all:
+        print("Error: At least one operation must be specified. Use -r/--readable, --remove-pictures, --format-numbers, --format-names, --auto-set-types, -u/--update-version, or -a/--all")
         return
 
     # Read the input file
@@ -49,29 +50,50 @@ def main():
     # Process the VCF file based on specified operations
     processed_lines = lines
     
-    if args.readable:
+    # Handle --all flag: apply all operations
+    if args.all:
         processed_lines = convertToReadable(processed_lines)
         print("Converted quoted-printable encoding to readable format")
-    
-    if args.remove_pictures:
+        
         processed_lines = removeContactPictures(processed_lines)
         print("Removed contact pictures")
-    
-    if args.format_numbers:
+        
         processed_lines = formatContactNumbers(processed_lines)
         print("Formatted contact phone numbers")
-    
-    if args.format_names:
+        
         processed_lines = formatContactNames(processed_lines)
         print("Formatted contact names")
-    
-    if args.auto_set_types:
+        
         processed_lines = autoSetContactTypes(processed_lines)
         print("Automatically set contact types based on phone number patterns")
-    
-    if args.update_version:
+        
         processed_lines = upgradeVcfVersion(processed_lines)
         print("Upgraded VCF from version 2.1 to 3.0")
+    else:
+        # Individual operations
+        if args.readable:
+            processed_lines = convertToReadable(processed_lines)
+            print("Converted quoted-printable encoding to readable format")
+        
+        if args.remove_pictures:
+            processed_lines = removeContactPictures(processed_lines)
+            print("Removed contact pictures")
+        
+        if args.format_numbers:
+            processed_lines = formatContactNumbers(processed_lines)
+            print("Formatted contact phone numbers")
+        
+        if args.format_names:
+            processed_lines = formatContactNames(processed_lines)
+            print("Formatted contact names")
+        
+        if args.auto_set_types:
+            processed_lines = autoSetContactTypes(processed_lines)
+            print("Automatically set contact types based on phone number patterns")
+        
+        if args.update_version:
+            processed_lines = upgradeVcfVersion(processed_lines)
+            print("Upgraded VCF from version 2.1 to 3.0")
 
     # Write the final result to output file
     with open(output_path, "w", encoding="utf-8") as outfile:
